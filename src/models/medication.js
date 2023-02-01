@@ -25,6 +25,12 @@ const medicationSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    quantity: {
+      type: Number,
+    },
+    quantityUnits: {
+      type: String,
+    },
     prescribedFor: {
       type: String,
     },
