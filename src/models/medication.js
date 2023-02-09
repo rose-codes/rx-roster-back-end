@@ -13,7 +13,7 @@ const medicationSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    form: {
+    medForm: {
       type: String,
       required: true,
     },
@@ -36,7 +36,6 @@ const medicationSchema = new mongoose.Schema(
     },
     instructions: {
       type: String,
-      required: true,
     },
     prescriber: {
       type: String,
@@ -56,7 +55,9 @@ const medicationSchema = new mongoose.Schema(
     },
     datePrescribed: {
       type: Date,
-      required: true,
+    },
+    startDate: {
+      type: Date,
     },
     sideEffects: {
       type: String,

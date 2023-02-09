@@ -1,10 +1,15 @@
 const express = require("express");
 const router = new express.Router();
+const cors = require("cors");
 const Medication = require("../models/medication");
+router.use(express.json());
+router.use(cors({ origin: "*" }));
+
 // Get entire medication history (w/ optional filter)
 router.get("/medications", async (req, res) => {
+  const queryObj = { ...req.query };
   try {
-    const medications = await Medication.find();
+    const medications = await Medication.find(queryObj);
     res.send(medications);
   } catch (err) {
     res.status(500).send(err);
@@ -28,7 +33,6 @@ router.get("/medications/:id", async (req, res) => {
 // Add a medication to medication history
 router.post("/medications", async (req, res) => {
   const medication = new Medication(req.body);
-  console.log(medication);
 
   try {
     await medication.save();
@@ -50,11 +54,19 @@ router.patch("/medications/:id", async (req, res) => {
     "manufacturer",
     "currentlyTaking",
     "datePrescribed",
+    "startDate",
     "sideEffects",
   ];
-  const isValidUpdate = userUpdates.every((update) => {
-    return allowedUpdates.includes(update);
-  });
+  const isValidUpdate = (userUpdates, allowedUpdates) => {
+    const bool = false;
+    for (key in userUpdates) {
+      if (allowedUpdates.includes(key)) {
+        bool = true;
+      }
+    }
+    return true;
+  };
+
   if (!isValidUpdate) {
     return res.status(400).send({ error: "Invalid updates" });
   }
