@@ -6,7 +6,7 @@ router.use(express.json());
 router.use(cors({ origin: "*" }));
 
 // Get entire medication history (w/ optional filter)
-router.get("/medications", async (req, res) => {
+router.get("/", async (req, res) => {
   const queryObj = { ...req.query };
   try {
     const medications = await Medication.find(queryObj);
@@ -17,7 +17,7 @@ router.get("/medications", async (req, res) => {
 });
 
 // Get a specific medication
-router.get("/medications/:id", async (req, res) => {
+router.get("/:id", async (req, res) => {
   const _id = req.params.id;
   try {
     const medication = await Medication.findById(_id);
@@ -31,7 +31,7 @@ router.get("/medications/:id", async (req, res) => {
 });
 
 // Add a medication to medication history
-router.post("/medications", async (req, res) => {
+router.post("/", async (req, res) => {
   const medication = new Medication(req.body);
 
   try {
@@ -43,7 +43,7 @@ router.post("/medications", async (req, res) => {
 });
 
 // Update a medication in medication history
-router.patch("/medications/:id", async (req, res) => {
+router.patch("/:id", async (req, res) => {
   const userUpdates = Object.keys(req.body);
   const allowedUpdates = [
     "strength",
@@ -89,7 +89,7 @@ router.patch("/medications/:id", async (req, res) => {
 });
 
 // Delete a Medication
-router.delete("/medications/:id", async (req, res) => {
+router.delete("/:id", async (req, res) => {
   try {
     const medication = await Medication.findByIdAndDelete(req.params.id);
     if (!medication) {
