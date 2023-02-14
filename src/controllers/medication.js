@@ -27,12 +27,11 @@ const getOneMedication = async (req, res) => {
 };
 
 const addMedication = async (req, res) => {
-  console.log(req.user);
-  const medication = new Medication(req.body);
-
   try {
     const user_id = req.user._id;
-    await medication.save();
+    const medObj = { ...req.body, user_id };
+    console.log(medObj);
+    const medication = await Medication.create(medObj);
     res.status(201).send(medication);
   } catch (err) {
     res.status(400).send(err);
