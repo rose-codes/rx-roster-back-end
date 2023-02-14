@@ -27,7 +27,7 @@ const getOneMedication = async (req, res) => {
 };
 
 const addMedication = async (req, res) => {
-  console.log(req.user._id);
+  console.log(req.user);
   const medication = new Medication(req.body);
 
   try {
