@@ -62,6 +62,10 @@ const medicationSchema = new mongoose.Schema(
     sideEffects: {
       type: String,
     },
+    user_id: {
+      type: String,
+      required: true,
+    },
   },
   { strictQuery: true }
 );

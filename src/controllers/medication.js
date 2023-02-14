@@ -1,8 +1,11 @@
 const Medication = require("../models/medication");
 
 const getAllMedications = async (req, res) => {
+  const user_id = req.user._id;
   const queryObj = { ...req.query };
+  queryObj[user_id] = user_id;
   try {
+    // const medications = await Medication.find(queryObj);
     const medications = await Medication.find(queryObj);
     res.send(medications);
   } catch (err) {
@@ -27,6 +30,7 @@ const addMedication = async (req, res) => {
   const medication = new Medication(req.body);
 
   try {
+    const user_id = req.user._id;
     await medication.save();
     res.status(201).send(medication);
   } catch (err) {
