@@ -9,9 +9,9 @@ const userRouter = require("./routes/userRoutes");
 const app = express();
 const port = process.env.PORT || 5000;
 app.use(express.json());
+app.use(cors({ origin: "*", methods: "GET,HEAD,PUT,PATCH,POST,DELETE" }));
 app.use("/api/medications", medicationRouter);
 app.use("/api/users", userRouter);
-app.use(cors({ origin: "*" }));
 
 app.use(errorHandler);
 
