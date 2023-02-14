@@ -1,11 +1,11 @@
 const express = require("express");
 const router = new express.Router();
 const cors = require("cors");
-// const { protect } = require("../middleware/authMiddleware");
+const protect = require("../middleware/authMiddleware");
 router.use(express.json());
 router.use(cors({ origin: "*" }));
 
-// router.use(protect);
+router.use(protect);
 
 const {
   getAllMedications,
