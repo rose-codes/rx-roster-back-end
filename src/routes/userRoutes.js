@@ -2,14 +2,20 @@ const express = require("express");
 const router = new express.Router();
 const cors = require("cors");
 // const User = require("../models/user");
-const { signUpUser, loginUser } = require("../controllers/user");
+const {
+  signUpUser,
+  loginUser,
+  getUserProfile,
+} = require("../controllers/user");
 router.use(express.json());
 router.use(cors({ origin: "*" }));
+
+const { protect } = require("../middleware/authMiddleware");
 
 // Get entire medication history (w/ optional filter)
 router.post("/login", loginUser);
 
 router.post("/signup", signUpUser);
-router.post("/profile", getUserProfile);
+router.post("/profile", protect, getUserProfile);
 
 module.exports = router;
