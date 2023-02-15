@@ -2,7 +2,6 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/user");
 
 const protect = async (req, res, next) => {
-  console.log(req.headers);
   let token;
   if (
     req.headers.authorization &&
@@ -10,12 +9,11 @@ const protect = async (req, res, next) => {
   ) {
     try {
       token = req.headers.authorization.split(" ")[1];
-      console.log(token);
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = await User.findById(decoded.id).select("_id");
+      req.user = await User.findById(decoded._id).select("_id");
       next();
     } catch (err) {
-      console.log(err);
+      console.log("error inside auth", err);
       res.status(401);
       res.send(err);
     }

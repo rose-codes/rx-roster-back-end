@@ -4,8 +4,8 @@ const getAllMedications = async (req, res) => {
   const user_id = req.user._id;
   const queryObj = { ...req.query };
   queryObj[user_id] = user_id;
+  console.log(queryObj);
   try {
-    // const medications = await Medication.find(queryObj);
     const medications = await Medication.find(queryObj);
     res.send(medications);
   } catch (err) {
@@ -30,7 +30,7 @@ const addMedication = async (req, res) => {
   try {
     const user_id = req.user._id;
     const medObj = { ...req.body, user_id };
-    console.log(medObj);
+    console.log("medObj:", medObj);
     const medication = await Medication.create(medObj);
     res.status(201).send(medication);
   } catch (err) {

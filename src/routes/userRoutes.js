@@ -11,7 +11,7 @@ const {
 router.use(express.json());
 router.use(cors({ origin: "*" }));
 
-const { protect } = require("../middleware/authMiddleware");
+const protect = require("../middleware/authMiddleware");
 
 // Get entire medication history (w/ optional filter)
 router.post("/login", loginUser);
