@@ -6,7 +6,7 @@ const {
   signUpUser,
   loginUser,
   getUserProfile,
-} = require("../controllers/user");
+} = require("../controllers/v2/user");
 
 router.use(express.json());
 router.use(cors({ origin: "*" }));
@@ -14,9 +14,9 @@ router.use(cors({ origin: "*" }));
 const protect = require("../middleware/authMiddleware");
 
 // Get entire medication history (w/ optional filter)
-router.post("/login", loginUser);
+// router.post("/login", loginUser);
 
 router.post("/signup", signUpUser);
-router.post("/profile", protect, getUserProfile);
+// router.post("/profile", protect, getUserProfile);
 
 module.exports = router;

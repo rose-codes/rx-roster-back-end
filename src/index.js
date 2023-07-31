@@ -2,7 +2,8 @@ const express = require("express");
 const dotenv = require("dotenv").config();
 const cors = require("cors");
 const errorHandler = require("./middleware/errorMiddleware");
-require("./db/mongoose");
+
+// require("./db/mongoose");
 const medicationRouter = require("./routes/medicationRoutes");
 const userRouter = require("./routes/userRoutes");
 
