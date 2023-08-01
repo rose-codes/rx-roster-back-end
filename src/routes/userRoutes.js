@@ -13,10 +13,9 @@ router.use(cors({ origin: "*" }));
 
 const protect = require("../middleware/authMiddleware");
 
-// Get entire medication history (w/ optional filter)
-// router.post("/login", loginUser);
+router.post("/login", loginUser);
 
 router.post("/signup", signUpUser);
-// router.post("/profile", protect, getUserProfile);
+router.post("/profile", protect, getUserProfile);
 
 module.exports = router;
