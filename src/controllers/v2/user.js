@@ -2,7 +2,8 @@ const { dynamoClient } = require("../../db/dynamo");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const validator = require("validator");
-const tableName = "rx-roster-users";
+const usersTable = "rx-roster-users";
+const medsTable = "rx-roster-medications";
 
 // @desc: Adds a new user
 // @route: /api/users/signup
@@ -23,14 +24,12 @@ const signUpUser = async (req, res) => {
 
   const salt = await bcrypt.genSalt(10);
   const hashedPass = await bcrypt.hash(password, salt);
-  const checkPass = await bcrypt.compare(password, hashedPass);
-  console.log(checkPass);
   const userId = crypto.randomUUID();
   const transactItems = {
     TransactItems: [
       {
         Put: {
-          TableName: tableName,
+          TableName: usersTable,
           Item: {
             PK: "USER#" + userId,
             userId,
@@ -44,7 +43,7 @@ const signUpUser = async (req, res) => {
       },
       {
         Put: {
-          TableName: tableName,
+          TableName: usersTable,
           Item: {
             PK: "EMAIL#" + email,
             userId,
@@ -56,19 +55,29 @@ const signUpUser = async (req, res) => {
           ConditionExpression: "attribute_not_exists(PK)",
         },
       },
+      {
+        Put: {
+          TableName: medsTable,
+          Item: {
+            PK: "USER#" + userId,
+            userId,
+            medications: [],
+          },
+          ConditionExpression: "attribute_not_exists(PK)",
+        },
+      },
     ],
   };
   dynamoClient
     .transactWrite(transactItems)
     .promise()
-    .then((user) => {
-      const userBody = user.Item;
+    .then(() => {
       res.status(201).json({
-        id: userBody.userId,
-        firstName: userBody.firstName,
-        surname: userBody.surname,
-        email: userBody.email,
-        token: generateToken(userBody.userId),
+        id: userId,
+        firstName: firstName,
+        surname: surname,
+        email: email,
+        token: generateToken(userId),
       });
     })
     .catch((err) => {
@@ -84,15 +93,15 @@ const loginUser = async (req, res) => {
   try {
     const user = await dynamoClient
       .get({
-        TableName: tableName,
+        TableName: usersTable,
         Key: {
           PK: "EMAIL#" + email,
         },
       })
       .promise();
     if (user) {
-      const userBody = user.Item;
       try {
+        const userBody = user.Item;
         const isCorrectPass = await bcrypt.compare(password, userBody.password);
         if (isCorrectPass) {
           res.status(200).json({
