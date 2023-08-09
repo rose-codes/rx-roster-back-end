@@ -20,21 +20,28 @@ const getAllMedications = async (req, res) => {
 };
 
 const getOneMedication = async (req, res) => {
-  const { userId, medId } = req.body;
+  const userId = req.user.userId;
+  const { medId } = req.body;
+  console.log("userId:", userId, "medId:", medId);
   try {
-    const userMed = await dynamoClient.get({
-      TableName: tableName,
-      Key: {
-        userId: "USER#" + userId,
-      },
-    });
-    const allMedications = userMed.Item.medications;
-    const filterMed = allMedications.filter((med) => {
+    const userMedList = await dynamoClient
+      .get({
+        TableName: tableName,
+        Key: {
+          PK: "USER#" + userId,
+        },
+      })
+      .promise();
+    const allMedications = userMedList.Item.medications;
+    let foundMed = null;
+    for (let med of allMedications) {
       if (med.medId === medId) {
-        return med;
+        console.log("med:", med);
+        foundMed = med;
+        break;
       }
-    });
-    if (!filterMed) {
+    }
+    if (!foundMed) {
       return res.status(404).send("Medication not found");
     } else {
       res.send(foundMed);
@@ -45,42 +52,30 @@ const getOneMedication = async (req, res) => {
 };
 
 const addMedication = async (req, res) => {
-  const userId = req.userId;
-  const medObj = { ...req.body };
+  const userId = req.user.userId;
+  const medId = crypto.randomUUID();
+  const medObj = { ...req.body, medId };
   var params = {
     TableName: tableName,
     Key: {
-      userId: {
-        S: userId,
-      },
+      PK: "USER#" + userId,
     },
-    UpdateExpression:
-      "SET #ri = list_append(if_not_exists(#ri, :empty_list), :vals)",
-    ExpressionAttributeNames: {
-      "#ri": "medications",
-    },
+    UpdateExpression: "SET medications = list_append(medications, :m)",
+    ConditionExpression: "NOT contains(medications, :i)",
     ExpressionAttributeValues: {
-      ":vals": {
-        L: [
-          {
-            M: medObj,
-          },
-        ],
-      },
-      ":empty_list": { L: [] },
+      ":m": [medObj],
+      ":i": medObj,
     },
-    ReturnValues: "ALL_NEW",
   };
   try {
-    const medication = await dynamoClient.update(params);
-    res.status(201).send(medication);
+    const medication = await dynamoClient.update(params).promise();
+    res.status(201).send(medObj);
   } catch (err) {
     res.status(400).send(err);
   }
 };
 
 const updateMedication = async (req, res) => {
-  console.log(req);
   const userUpdates = Object.keys(req.body);
   const allowedUpdates = [
     "strength",
@@ -126,13 +121,45 @@ const updateMedication = async (req, res) => {
 };
 
 const deleteMedication = async (req, res) => {
+  const userId = req.user.userId;
+  const medId = req.params.id;
   try {
-    const medication = await Medication.findByIdAndDelete(req.params.id);
-    if (!medication) {
-      return res.status(404).send();
+    const userMed = await dynamoClient
+      .get({
+        TableName: tableName,
+        Key: {
+          PK: "USER#" + userId,
+        },
+      })
+      .promise();
+    const allMedications = userMed.Item.medications;
+    // console.log("allMedications:", allMedications);
+    // res.status(201).send("First call passed");
+    const filteredMedsList = allMedications.filter(
+      (med) => med.medId !== medId
+    );
+    // console.log("Filtered list:", filteredMedsList);
+    if (allMedications.length == filteredMedsList.length) {
+      return res.status(400).send("Medication not found");
     }
-    const newMedications = await Medication.find({});
-    res.send(newMedications);
+    try {
+      const newMedsItem = await dynamoClient
+        .update({
+          TableName: tableName,
+          Key: {
+            PK: "USER#" + userId,
+          },
+          UpdateExpression: "SET medications = :m",
+          ExpressionAttributeValues: {
+            ":m": filteredMedsList,
+          },
+        })
+        .promise();
+      res.status(200).send(filteredMedsList);
+    } catch (err) {
+      const error = { ...err, condition: "List was not updated" };
+      res.status(500).send(error);
+    }
   } catch (err) {
     res.status(500).send(err);
   }
