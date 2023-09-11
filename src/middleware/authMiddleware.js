@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
-const User = require("../models/user");
+const { dynamoClient } = require("../db/dynamo");
+const usersTable = "rx-roster-users";
 
 const protect = async (req, res, next) => {
   let token;
@@ -9,8 +10,19 @@ const protect = async (req, res, next) => {
   ) {
     try {
       token = req.headers.authorization.split(" ")[1];
+      //console.log("authToken:", token);
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = await User.findById(decoded._id).select("_id");
+      //console.log("authDecoded:", decoded);
+      const user = await dynamoClient
+        .get({
+          TableName: usersTable,
+          Key: {
+            PK: "USER#" + decoded._id,
+          },
+        })
+        .promise();
+      console.log("authUser:", user);
+      req.user = user.Item;
       next();
     } catch (err) {
       console.log("error inside auth", err);

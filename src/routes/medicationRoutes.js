@@ -13,7 +13,7 @@ const {
   addMedication,
   updateMedication,
   deleteMedication,
-} = require("../controllers/medication");
+} = require("../controllers/v2/medication");
 
 // Get entire medication history (w/ optional filter)
 router.get("/", getAllMedications);
