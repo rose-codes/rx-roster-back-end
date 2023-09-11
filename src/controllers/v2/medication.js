@@ -3,6 +3,8 @@ const tableName = "rx-roster-medications";
 
 const getAllMedications = async (req, res) => {
   const userId = req.user.userId;
+  const filter = req.body;
+  const filterList = Object.keys(filter);
   try {
     const userMed = await dynamoClient
       .get({
@@ -13,7 +15,19 @@ const getAllMedications = async (req, res) => {
       })
       .promise();
     const allMedications = userMed.Item.medications;
-    res.status(200).send(allMedications);
+    if (filter) {
+      const filteredMedsList = allMedications.filter((med) => {
+        for (criteria of filterList) {
+          if (med[criteria] !== filter[criteria]) {
+            return false;
+          }
+        }
+        return true;
+      });
+      res.status(200).send(filteredMedsList);
+    } else {
+      res.status(200).send(allMedications);
+    }
   } catch (err) {
     res.status(500).send(err);
   }
@@ -21,8 +35,7 @@ const getAllMedications = async (req, res) => {
 
 const getOneMedication = async (req, res) => {
   const userId = req.user.userId;
-  const { medId } = req.body;
-  console.log("userId:", userId, "medId:", medId);
+  const medId = req.body;
   try {
     const userMedList = await dynamoClient
       .get({
@@ -36,7 +49,6 @@ const getOneMedication = async (req, res) => {
     let foundMed = null;
     for (let med of allMedications) {
       if (med.medId === medId) {
-        console.log("med:", med);
         foundMed = med;
         break;
       }
@@ -78,7 +90,7 @@ const addMedication = async (req, res) => {
 const updateMedication = async (req, res) => {
   const userUpdates = Object.keys(req.body);
   const userId = req.user.userId;
-  const { medId } = req.params.id;
+  const medId = req.params.id;
   const allowedUpdates = [
     "strength",
     "prescribedFor",
@@ -117,7 +129,6 @@ const updateMedication = async (req, res) => {
     let updatedMed = null;
     for (let med of allMedications) {
       if (med.medId === medId) {
-        console.log("med:", med);
         for (update of userUpdates) {
           med[update] = req.body[update];
         }
@@ -128,7 +139,24 @@ const updateMedication = async (req, res) => {
     if (!updatedMed) {
       return res.status(404).send("Medication not found");
     }
-    res.status(200).send(updatedMed);
+    try {
+      const newMedsItem = await dynamoClient
+        .update({
+          TableName: tableName,
+          Key: {
+            PK: "USER#" + userId,
+          },
+          UpdateExpression: "SET medications = :m",
+          ExpressionAttributeValues: {
+            ":m": allMedications,
+          },
+        })
+        .promise();
+      res.status(200).send(updatedMed);
+    } catch (err) {
+      const error = { ...err, condition: "List was not updated" };
+      res.status(500).send(error);
+    }
   } catch (err) {
     res.status(500).send(err);
   }
