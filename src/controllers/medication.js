@@ -4,7 +4,6 @@ const getAllMedications = async (req, res) => {
   const user_id = req.user._id;
   const queryObj = { ...req.query };
   queryObj[user_id] = user_id;
-  // console.log(queryObj);
   try {
     const medications = await Medication.find(queryObj);
     res.send(medications);

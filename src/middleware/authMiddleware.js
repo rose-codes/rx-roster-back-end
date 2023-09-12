@@ -10,9 +10,7 @@ const protect = async (req, res, next) => {
   ) {
     try {
       token = req.headers.authorization.split(" ")[1];
-      //console.log("authToken:", token);
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      //console.log("authDecoded:", decoded);
       const user = await dynamoClient
         .get({
           TableName: usersTable,
@@ -21,11 +19,9 @@ const protect = async (req, res, next) => {
           },
         })
         .promise();
-      console.log("authUser:", user);
       req.user = user.Item;
       next();
     } catch (err) {
-      console.log("error inside auth", err);
       res.status(401);
       res.send(err);
     }
