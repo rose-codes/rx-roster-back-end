@@ -2,6 +2,7 @@ const { dynamoClient } = require("../../db/dynamo");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const validator = require("validator");
+const crypto = require("crypto");
 const usersTable = "rx-roster-users";
 const medsTable = "rx-roster-medications";
 

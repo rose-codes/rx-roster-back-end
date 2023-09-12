@@ -1,4 +1,5 @@
 const { dynamoClient } = require("../../db/dynamo");
+const crypto = require("crypto");
 const tableName = "rx-roster-medications";
 
 const getAllMedications = async (req, res) => {
