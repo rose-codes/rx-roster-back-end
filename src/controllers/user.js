@@ -1,7 +1,11 @@
+const { dynamoClient } = require("../db/dynamo");
 const bcrypt = require("bcryptjs");
-const User = require("../models/user");
 const jwt = require("jsonwebtoken");
 const validator = require("validator");
+const crypto = require("crypto");
+const usersTable = "rx-roster-users";
+const medsTable = "rx-roster-medications";
+
 // @desc: Adds a new user
 // @route: /api/users/signup
 // @access: Public
@@ -19,32 +23,67 @@ const signUpUser = async (req, res) => {
     return console.log("Password is not strong enough");
   }
 
-  const userExists = await User.findOne({ email });
-  if (userExists) {
-    res.status(400).send("Email already in use");
-  }
-
   const salt = await bcrypt.genSalt(10);
   const hashedPass = await bcrypt.hash(password, salt);
-
-  const user = await User.create({
-    firstName,
-    surname,
-    email,
-    password: hashedPass,
-  });
-
-  if (user) {
-    res.status(201).json({
-      _id: user._id,
-      firstName: user.firstName,
-      surname: user.surname,
-      email: user.email,
-      token: generateToken(user._id),
+  const userId = crypto.randomUUID();
+  const transactItems = {
+    TransactItems: [
+      {
+        Put: {
+          TableName: usersTable,
+          Item: {
+            PK: "USER#" + userId,
+            userId,
+            email,
+            password: hashedPass,
+            firstName,
+            surname,
+          },
+          ConditionExpression: "attribute_not_exists(PK)",
+        },
+      },
+      {
+        Put: {
+          TableName: usersTable,
+          Item: {
+            PK: "EMAIL#" + email,
+            userId,
+            email,
+            password: hashedPass,
+            firstName,
+            surname,
+          },
+          ConditionExpression: "attribute_not_exists(PK)",
+        },
+      },
+      {
+        Put: {
+          TableName: medsTable,
+          Item: {
+            PK: "USER#" + userId,
+            userId,
+            medications: [],
+          },
+          ConditionExpression: "attribute_not_exists(PK)",
+        },
+      },
+    ],
+  };
+  dynamoClient
+    .transactWrite(transactItems)
+    .promise()
+    .then(() => {
+      res.status(201).json({
+        id: userId,
+        firstName: firstName,
+        surname: surname,
+        email: email,
+        token: generateToken(userId),
+      });
+    })
+    .catch((err) => {
+      res.status(400).send("An account with this email already exists.");
     });
-  } else {
-    res.status(400).send("Invalid user data");
-  }
 };
 
 // @desc: Login a user
@@ -52,17 +91,34 @@ const signUpUser = async (req, res) => {
 // @access: Public
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
-  const user = await User.findOne({ email });
-  if (user && (await bcrypt.compare(password, user.password))) {
-    res.status(200).json({
-      _id: user._id,
-      firstName: user.firstName,
-      surname: user.surname,
-      email: user.email,
-      token: generateToken(user._id),
-    });
-  } else {
-    res.status(401).send("Invalid credentials");
+  try {
+    const user = await dynamoClient
+      .get({
+        TableName: usersTable,
+        Key: {
+          PK: "EMAIL#" + email,
+        },
+      })
+      .promise();
+    if (user) {
+      try {
+        const userBody = user.Item;
+        const isCorrectPass = await bcrypt.compare(password, userBody.password);
+        if (isCorrectPass) {
+          res.status(200).json({
+            userId: userBody.userId,
+            firstName: userBody.firstName,
+            surname: userBody.surname,
+            email: userBody.email,
+            token: generateToken(userBody.userId),
+          });
+        }
+      } catch {
+        res.status(401).send("Invalid credentials");
+      }
+    }
+  } catch {
+    res.status(401).send("Cannot get user");
   }
 };
 

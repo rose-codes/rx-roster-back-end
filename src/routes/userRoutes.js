@@ -6,7 +6,7 @@ const {
   signUpUser,
   loginUser,
   getUserProfile,
-} = require("../controllers/v2/user");
+} = require("../controllers/user");
 
 router.use(express.json());
 router.use(cors({ origin: "*" }));

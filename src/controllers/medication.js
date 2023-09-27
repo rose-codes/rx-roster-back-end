@@ -1,44 +1,97 @@
-const Medication = require("../models/medication");
+const { dynamoClient } = require("../db/dynamo");
+const crypto = require("crypto");
+const tableName = "rx-roster-medications";
 
 const getAllMedications = async (req, res) => {
-  const user_id = req.user._id;
-  const queryObj = { ...req.query };
-  queryObj[user_id] = user_id;
+  const userId = req.user.userId;
+  const filter = req.body;
+  const filterList = Object.keys(filter);
   try {
-    const medications = await Medication.find(queryObj);
-    res.send(medications);
+    const userMed = await dynamoClient
+      .get({
+        TableName: tableName,
+        Key: {
+          PK: "USER#" + userId,
+        },
+      })
+      .promise();
+    const allMedications = userMed.Item.medications;
+    if (filter) {
+      const filteredMedsList = allMedications.filter((med) => {
+        for (criteria of filterList) {
+          if (med[criteria] !== filter[criteria]) {
+            return false;
+          }
+        }
+        return true;
+      });
+      res.status(200).send(filteredMedsList);
+    } else {
+      res.status(200).send(allMedications);
+    }
   } catch (err) {
     res.status(500).send(err);
   }
 };
 
 const getOneMedication = async (req, res) => {
-  const _id = req.params.id;
+  const userId = req.user.userId;
+  const medId = req.body;
   try {
-    const medication = await Medication.findById(_id);
-    if (!medication) {
-      return res.status(404).send("Medication not found");
+    const userMedList = await dynamoClient
+      .get({
+        TableName: tableName,
+        Key: {
+          PK: "USER#" + userId,
+        },
+      })
+      .promise();
+    const allMedications = userMedList.Item.medications;
+    let foundMed = null;
+    for (let med of allMedications) {
+      if (med.medId === medId) {
+        foundMed = med;
+        break;
+      }
     }
-    res.send(medication);
+    if (!foundMed) {
+      return res.status(404).send("Medication not found");
+    } else {
+      res.send(foundMed);
+    }
   } catch (err) {
     res.status(500).send(err);
   }
 };
 
 const addMedication = async (req, res) => {
+  const userId = req.user.userId;
+  const medId = crypto.randomUUID();
+  const medObj = { ...req.body, medId };
+  var params = {
+    TableName: tableName,
+    Key: {
+      PK: "USER#" + userId,
+    },
+    UpdateExpression: "SET medications = list_append(medications, :m)",
+    ConditionExpression: "NOT contains(medications, :i)",
+    ExpressionAttributeValues: {
+      ":m": [medObj],
+      ":i": medObj,
+    },
+  };
   try {
-    const user_id = req.user._id;
-    const medObj = { ...req.body, user_id };
-    const medication = await Medication.create(medObj);
-    res.status(201).send(medication);
+    const medication = await dynamoClient.update(params).promise();
+    res.status(201).send(medObj);
   } catch (err) {
     res.status(400).send(err);
   }
 };
 
 const updateMedication = async (req, res) => {
-  console.log(req);
   const userUpdates = Object.keys(req.body);
+  const userId = req.user.userId;
+  const medId = req.params.id;
   const allowedUpdates = [
     "strength",
     "prescribedFor",
@@ -65,31 +118,89 @@ const updateMedication = async (req, res) => {
     return res.status(400).send({ error: "Invalid updates" });
   }
   try {
-    const medication = await Medication.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-        runValidators: true,
+    const userMed = await dynamoClient
+      .get({
+        TableName: tableName,
+        Key: {
+          PK: "USER#" + userId,
+        },
+      })
+      .promise();
+    const allMedications = userMed.Item.medications;
+    let updatedMed = null;
+    for (let med of allMedications) {
+      if (med.medId === medId) {
+        for (update of userUpdates) {
+          med[update] = req.body[update];
+        }
+        updatedMed = med;
+        break;
       }
-    );
-    if (!medication) {
-      return res.status(404).send();
     }
-    res.send(medication);
+    if (!updatedMed) {
+      return res.status(404).send("Medication not found");
+    }
+    try {
+      const newMedsItem = await dynamoClient
+        .update({
+          TableName: tableName,
+          Key: {
+            PK: "USER#" + userId,
+          },
+          UpdateExpression: "SET medications = :m",
+          ExpressionAttributeValues: {
+            ":m": allMedications,
+          },
+        })
+        .promise();
+      res.status(200).send(updatedMed);
+    } catch (err) {
+      const error = { ...err, condition: "List was not updated" };
+      res.status(500).send(error);
+    }
   } catch (err) {
     res.status(500).send(err);
   }
 };
 
 const deleteMedication = async (req, res) => {
+  const userId = req.user.userId;
+  const medId = req.params.id;
   try {
-    const medication = await Medication.findByIdAndDelete(req.params.id);
-    if (!medication) {
-      return res.status(404).send();
+    const userMed = await dynamoClient
+      .get({
+        TableName: tableName,
+        Key: {
+          PK: "USER#" + userId,
+        },
+      })
+      .promise();
+    const allMedications = userMed.Item.medications;
+    const filteredMedsList = allMedications.filter(
+      (med) => med.medId !== medId
+    );
+
+    if (allMedications.length == filteredMedsList.length) {
+      return res.status(400).send("Medication not found");
     }
-    const newMedications = await Medication.find({});
-    res.send(newMedications);
+    try {
+      const newMedsItem = await dynamoClient
+        .update({
+          TableName: tableName,
+          Key: {
+            PK: "USER#" + userId,
+          },
+          UpdateExpression: "SET medications = :m",
+          ExpressionAttributeValues: {
+            ":m": filteredMedsList,
+          },
+        })
+        .promise();
+      res.status(200).send(filteredMedsList);
+    } catch (err) {
+      const error = { ...err, condition: "List was not updated" };
+      res.status(500).send(error);
+    }
   } catch (err) {
     res.status(500).send(err);
   }
